@@ -29,7 +29,9 @@ $ kubectl cluster-info
 Kubernetes master is running at http://127.0.0.1.nip.io:8080
 ```
 
-## Application - GuestBook
+## Application
+
+### GuestBook
 The [GuestBook application](/apps/guestbook) is based on the example from the K8s [documentation](https://github.com/kubernetes/kubernetes/tree/release-1.2/examples/guestbook/).
 
 To deploy the application:
@@ -43,6 +45,14 @@ To access the application, use your browser to navigate to http://<GUESTBOOK_EXT
 To remove the application:
 ```sh
 $ ./apps/guestbook/cleanup.sh
+```
+
+### Ticker
+The [ticker](/apps/ticker) is a simple shell script to output a continuous string of current datetime.
+
+To deploy the application:
+```sh
+$ kubectl create -f app/ticker/deployment.yml # create the ticker deployment with replications
 ```
 
 ## LICENSE
