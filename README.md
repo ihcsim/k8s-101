@@ -55,6 +55,40 @@ To deploy the application:
 $ kubectl create -f app/ticker/deployment.yml # create the ticker deployment with replications
 ```
 
+### nginx
+The [nginx](http://nginx.org/en/) server front by a secure K8s TLS service. The code to generate the self-signed RSA key and certificate is based on this K8s [example](https://github.com/kubernetes/kubernetes/tree/672d5a777d5df35cc1e74c8075e3c17a20c4c20b/examples/https-nginx).
+
+Use the k8s `secret` API to generate the self-signed RSA key and certificate that the server can use for TLS:
+```sh
+$ make -C api/secret keys secret KEY_OUT=`PWD`/apps/nginx/nginx.key CERT_OUT=`PWD`/apps/nginx/nginx.crt SECRET_OUT=`PWD`/apps/nginx/secret.json SECRET_NAME=nginxsecret SVC_NAME=nginx
+$ kubectl create -f apps/nginx/secret.json
+```
+
+To deploy the Nginx application and its service:
+```sh
+$ kubectl create -f app/nginx/deployment.yml
+```
+
+Use the `curlssl` application to verify SSL access:
+```sh
+$ kubectl create -f app/curlssl/curl-nginx.yml
+$ kubectl exec <curl-nginx-pod> -- curl https://nginx --cacert /etc/nginx/ssl/nginx.crt
+```
+
+To view details of the Nginx service and pods endpoints:
+```sh
+$ kubectl get svc nginx -o wide
+$ kubectl describe svc nginx
+$ kubectl get ep nginx
+```
+
+Use the [tutum/dnsutils](https://hub.docker.com/r/tutum/dnsutils/) image to verify DNS resolution:
+```sh
+$ kubectl run dnsutil --image tutum/dnsutils -i --tty
+root@dnsutil-1330864204-ygcp2:/# nslookup nginx
+root@dnsutil-1330864204-ygcp2:/# dig nginx
+```
+
 ## LICENSE
 
 This project is under Apache v2 License. See the [LICENSE](LICENSE) file for the full license text.
