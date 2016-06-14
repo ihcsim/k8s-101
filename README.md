@@ -1,8 +1,20 @@
 # k8s-101
 
-k8s-101 contains sample scripts that are used to get [Kubernetes](http://kubernetes.io/) up and running. The `install` folder contains different flavors of start-up scripts.
+k8s-101 contains sample scripts to get [Kubernetes](http://kubernetes.io/) and some sample applications up and running. The `install` folder contains different flavors of start-up scripts.
 
-## Installation - boot2docker
+# Table of Content
+
+* [Installation](#installation)
+  * [boot2docker](#boot2docker)
+* [Applications](#applications)
+  * [GuestBook](#guestbook)
+  * [Ticker](#ticker)
+  * [nginx](#nginx)
+* [LICENSE](#license)
+
+## Installation
+
+### boot2docker
 
 `install\boot2docker` contains scripts to run K8s with SkyDNS and K8s Dashboard using Docker on your local laptop. K8s will be set up to listen at 127.0.0.1.nip.io:8080. Modify the `HOSTNAME` variable to change this setting.
 
@@ -29,7 +41,7 @@ $ kubectl cluster-info
 Kubernetes master is running at http://127.0.0.1.nip.io:8080
 ```
 
-## Application
+## Applications
 
 ### GuestBook
 The [GuestBook application](/apps/guestbook) is based on the example from the K8s [documentation](https://github.com/kubernetes/kubernetes/tree/release-1.2/examples/guestbook/).
