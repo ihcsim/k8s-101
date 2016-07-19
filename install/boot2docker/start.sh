@@ -1,8 +1,10 @@
 #!/bin/bash
 
 set -x
-K8S_VERSION=1.2.2
-HOSTNAME=127.0.0.1.nip.io
+ARCH=amd64
+K8S_VERSION=`curl -sS https://storage.googleapis.com/kubernetes-release/release/stable.txt`
+IP_ADDRESS=127.0.0.1
+HOSTNAME=localhost
 API_SERVERS=http://${HOSTNAME}:8080
 DNS_SERVER=10.0.0.10
 CLUSTER_DOMAIN=cluster.local
@@ -18,10 +20,10 @@ docker run \
   --privileged=true \
   --name=kubelet \
   -d \
-  gcr.io/google_containers/hyperkube-amd64:v${K8S_VERSION} \
+  gcr.io/google_containers/hyperkube-${ARCH}:${K8S_VERSION} \
   /hyperkube kubelet \
   --containerized \
-  --hostname-override=${HOSTNAME} \
+  --hostname-override=${IP_ADDRESS} \
   --address="0.0.0.0" \
   --api-servers=${API_SERVERS} \
   --config=/etc/kubernetes/manifests \
@@ -30,4 +32,4 @@ docker run \
   --allow-privileged=true \
   --v=2
 
-docker-machine ssh `docker-machine active` -N -L 8080:127.0.0.1.nip.io:8080 &
+docker-machine ssh `docker-machine active` -N -L 8080:${HOSTNAME}:8080

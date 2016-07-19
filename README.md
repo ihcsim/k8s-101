@@ -10,6 +10,7 @@ k8s-101 contains sample scripts to get [Kubernetes](http://kubernetes.io/) and s
   * [GuestBook](#guestbook)
   * [Ticker](#ticker)
   * [nginx](#nginx)
+* [Clean Up](#cleanup)
 * [LICENSE](#license)
 
 ## Installation
@@ -99,6 +100,17 @@ Use the [tutum/dnsutils](https://hub.docker.com/r/tutum/dnsutils/) image to veri
 $ kubectl run dnsutil --image tutum/dnsutils -i --tty
 root@dnsutil-1330864204-ygcp2:/# nslookup nginx
 root@dnsutil-1330864204-ygcp2:/# dig nginx
+```
+
+## Clean Up
+
+Clean up the Docker containers using `docker rm -f $(docker ps -aq)`. Note this removes all containers running under Docker, so use with caution.
+
+When using Docker Machine, clean up the filesystem by doing:
+```
+$ docker-machine ssh `docker-machine active`
+$ grep /var/lib/kubelet /proc/mounts | awk '{print $2}' | sudo xargs -n1 umount
+$ sudo rm -rf /var/lib/kubelet
 ```
 
 ## LICENSE
