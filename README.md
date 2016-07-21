@@ -98,7 +98,7 @@ $ kubectl create -f app/nginx/deployment.yml
 
 Use the `curlssl` application to verify SSL access:
 ```sh
-$ kubectl create -f app/curlssl/curl-nginx.yml
+$ kubectl create -f app/nginx/curl.yml
 $ kubectl exec <curl-nginx-pod> -- curl https://nginx --cacert /etc/nginx/ssl/nginx.crt
 ```
 
