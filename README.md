@@ -1,12 +1,13 @@
 # k8s-101
 
-k8s-101 contains sample scripts to get [Kubernetes](http://kubernetes.io/) and some sample applications up and running. The `install` folder contains different flavors of start-up scripts.
+k8s-101 contains sample scripts to install [Kubernetes](http://kubernetes.io/) and  run some sample applications. The `install` folder contains different flavors of start-up scripts.
 
 # Table of Content
 
 * [Installation](#installation)
-  * [hyperkube](#hyperkube)
+  * [kubectl](#kubectl)
   * [minikube](#minikube)
+  * [hyperkube](#hyperkube)
 * [Applications](#applications)
   * [GuestBook](#guestbook)
   * [Ticker](#ticker)
@@ -15,7 +16,44 @@ k8s-101 contains sample scripts to get [Kubernetes](http://kubernetes.io/) and s
 
 ## Installation
 
-### hyperkube
+Install the vendored dependencies using [glide](https://github.com/Masterminds/glide).
+
+```sh
+$ curl https://glide.sh/get | sh # install glide
+$ glide install
+```
+
+## kubectl
+
+Download and install kubectl using the `install/kubectl/install.sh` script. Refer the k8s [docs](http://kubernetes.io/docs/getting-started-guides/minikube/#install-kubectl) for further information.
+
+The `install.sh` script accepts the following environmental variables:
+
+Variables | Description | Default
+--------- | ----------- | -------
+VERSION   | Version of kubectl to download | 0.8.0
+OS        | Build of the binary | darwin
+ARCH      | Build of the binary | amd64
+
+## minikube
+Run the `install/minikube/install.sh` script to install [minikube](https://github.com/kubernetes/minikube/blob/master/README.md).
+
+The `install.sh` script accepts the following environmental variables:
+
+iVariables | Description | Default
+--------- | ----------- | -------
+VERSION   | minikube version to download | v0.7.1
+PLATFORM  | Build of the binary | darwin
+ARCH      | Build of the binary | amd64
+
+For installation prerequisite, refer minikube installation instruction [here](https://github.com/kubernetes/minikube/blob/master/README.md#requirements).
+
+To start the k8s cluster, run
+```sh
+$ minikube start --vm-driver={virtualbox|vmwarefusion|kvm|xhyve}
+```
+
+## hyperkube
 **Per the k8s [Getting Started Guide](http://kubernetes.io/docs/getting-started-guides/docker/), hyperkube is no longer the preferred approach to run k8s locally. Try [minikube](#minikube) instead.**
 
 The `install/hyperkube/start.sh` can be used to start up k8s server components using [hyperkube](https://github.com/kubernetes/kubernetes/tree/master/cluster/images/hyperkube). As of k8s [1.3.0](https://github.com/kubernetes/kubernetes/commit/6c53c6a997b2f28eb4326656b9819b098454d6eb), SkyDNS and the k8s Dashboard are installed as part of hyperkube. In this installation, k8s will be set up to listen at 127.0.0.1.nip.io:8080. Modify the `HOSTNAME` variable to change the server's listening address.
@@ -34,7 +72,7 @@ $ curl 127.0.0.1.nip.io
 
 You can also navigate to the k8s dashboard from your web browser at http://127.0.0.1.nip.io:8080/ui/.
 
-### Configure kubectl 
+### Configure kubectl
 This is an optional set-up that adds the hyperkube k8s cluster to your `~/.kube/config` file.
 ```sh
 $ kubectl config set-cluster hyperkube --server=http://127.0.0.1.nip.io:8080 --api-version=1
@@ -54,16 +92,6 @@ $ grep /var/lib/kubelet /proc/mounts | awk '{print $2}' | sudo xargs -n1 umount
 $ sudo rm -rf /var/lib/kubelet
 ```
 
-## MiniKube
-Run the `install/minikube/start.sh` to install [minikube](https://github.com/kubernetes/minikube/blob/master/README.md) on your local machine. The `start.sh` script supports some variables 
-
-Variables | Description | Default
---------- | ----------- | -------
-VERSION   | minikube version to download | v0.7.1
-PLATFORM  | Platform you are running on | darwin
-ARCH      | Platform architecture you are running on | amd64
-
-For installation prerequisite, refer minikube installation instruction [here](https://github.com/kubernetes/minikube/blob/master/README.md#requirements).
 
 ## Applications
 
