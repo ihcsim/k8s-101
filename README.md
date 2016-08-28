@@ -96,17 +96,26 @@ $ sudo rm -rf /var/lib/kubelet
 ## Applications
 
 ### GuestBook
-The [GuestBook application](/apps/guestbook) is based on the example from the k8s [documentation](https://github.com/kubernetes/kubernetes/tree/release-1.2/examples/guestbook/).
+The [guestBook](/apps/guestbook) application is based on the example from the k8s [documentation](https://github.com/kubernetes/kubernetes/tree/release-1.2/examples/guestbook/).
 
 To deploy the application:
 ```sh
-$ kubectl create -f app/guestbook/redis.yml    # create redis master service and deployment
-$ kubectl create -f app/guestbook/frontend.yml # create the guestbook app
+$ kubectl create -f apps/guestbook/redis.yml    # create redis master service and deployment
+$ kubectl create -f apps/guestbook/frontend.yml # create the guestbook app
+$ kubectl get deployment # verify the deployment
+NAME           DESIRED   CURRENT   UP-TO-DATE   AVAILABLE   AGE
+frontend       3         3         3            3           9m
+redis-master   1         1         1            1           18m
+redis-slave    2         2         2            2           18m
+$ kubectl get svc # verify the service
+NAME          CLUSTER-IP   EXTERNAL-IP   PORT(S)    AGE
+frontend      10.0.0.103   <nodes>       80/TCP     10m
+redis-slave   10.0.0.47    <none>        6379/TCP   19m
 ```
 
-To access the application, use your browser to navigate to http://<GUESTBOOK_EXTERNAL_IP> where `GUESTBOOK_EXTERNAL_IP` can be retrieved using `$ kubectl describe services frontend`.
+The `frontend` service is deployed with its `nodePort` set to 32100. To access the application from a web browser, navigate to http://<MINIKUBE_VM_IP>:32100 where `MINIKUBE_VM_IP` can be retrieved using `$ kubectl describe pod minikubevm` under the `Addresses` field..
 
-To remove the application:
+To remove the application's deployment and service resources, use the `cleanup.sh` script:
 ```sh
 $ ./apps/guestbook/cleanup.sh
 ```
