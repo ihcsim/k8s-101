@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -xe
+set -e
 
 VERSION=${VERSION:-v0.8.0}
 OS=${OS:-darwin}

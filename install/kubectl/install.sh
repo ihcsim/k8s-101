@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 VERSION=${VERSION:-v1.3.0}
 OS=${OS:-darwin}
 ARCH=${ARCH:-amd64}

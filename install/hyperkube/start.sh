@@ -1,6 +1,7 @@
 #!/bin/bash
 
 set -x
+
 ARCH=amd64
 K8S_VERSION=`curl -sS https://storage.googleapis.com/kubernetes-release/release/stable.txt`
 IP_ADDRESS=127.0.0.1
