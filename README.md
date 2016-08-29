@@ -8,6 +8,7 @@ k8s-101 contains sample scripts to install [Kubernetes](http://kubernetes.io/) a
   * [kubectl](#kubectl)
   * [minikube](#minikube)
   * [hyperkube](#hyperkube)
+  * [DigitalOcean](#digitalocean)
 * [Applications](#applications)
   * [GuestBook](#guestbook)
   * [Ticker](#ticker)
@@ -23,7 +24,7 @@ $ curl https://glide.sh/get | sh # install glide
 $ glide install
 ```
 
-## kubectl
+### kubectl
 
 Download and install kubectl using the `install/kubectl/install.sh` script. Refer the k8s [docs](http://kubernetes.io/docs/getting-started-guides/minikube/#install-kubectl) for further information.
 
@@ -35,12 +36,12 @@ VERSION   | Version of kubectl to download | 0.8.0
 OS        | Build of the binary | darwin
 ARCH      | Build of the binary | amd64
 
-## minikube
+### minikube
 Run the `install/minikube/install.sh` script to install [minikube](https://github.com/kubernetes/minikube/blob/master/README.md).
 
 The `install.sh` script accepts the following environmental variables:
 
-iVariables | Description | Default
+Variables | Description | Default
 --------- | ----------- | -------
 VERSION   | minikube version to download | v0.7.1
 PLATFORM  | Build of the binary | darwin
@@ -53,7 +54,7 @@ To start the k8s cluster, run
 $ minikube start --vm-driver={virtualbox|vmwarefusion|kvm|xhyve}
 ```
 
-## hyperkube
+### hyperkube
 **Per the k8s [Getting Started Guide](http://kubernetes.io/docs/getting-started-guides/docker/), hyperkube is no longer the preferred approach to run k8s locally. Try [minikube](#minikube) instead.**
 
 The `install/hyperkube/start.sh` can be used to start up k8s server components using [hyperkube](https://github.com/kubernetes/kubernetes/tree/master/cluster/images/hyperkube). As of k8s [1.3.0](https://github.com/kubernetes/kubernetes/commit/6c53c6a997b2f28eb4326656b9819b098454d6eb), SkyDNS and the k8s Dashboard are installed as part of hyperkube. In this installation, k8s will be set up to listen at 127.0.0.1.nip.io:8080. Modify the `HOSTNAME` variable to change the server's listening address.
@@ -72,7 +73,7 @@ $ curl 127.0.0.1.nip.io
 
 You can also navigate to the k8s dashboard from your web browser at http://127.0.0.1.nip.io:8080/ui/.
 
-### Configure kubectl
+#### Configure kubectl
 This is an optional set-up that adds the hyperkube k8s cluster to your `~/.kube/config` file.
 ```sh
 $ kubectl config set-cluster hyperkube --server=http://127.0.0.1.nip.io:8080 --api-version=1
@@ -82,7 +83,7 @@ $ kubectl cluster-info
 Kubernetes master is running at http://127.0.0.1.nip.io:8080
 ```
 
-### Clean Up
+#### Clean Up
 Clean up the Docker containers using `docker rm -f $(docker ps -aq)`. Note this removes all containers running under Docker, so use with caution.
 
 When using Docker Machine, clean up the filesystem by doing:
@@ -92,6 +93,140 @@ $ grep /var/lib/kubelet /proc/mounts | awk '{print $2}' | sudo xargs -n1 umount
 $ sudo rm -rf /var/lib/kubelet
 ```
 
+### DigitalOcean
+This section describes the steps to deploy k8s on CoreOS DigitalOcean droplets.
+
+#### Prerequisite
+
+* The DigitalOcean [doctl](https://github.com/digitalocean/doctl) CLI version 1.4.0.
+* Generate a new DigitalOcean API token following the instruction found [here](https://github.com/digitalocean/doctl#initialization).
+* Obtain a new discovery URL obtained from https://discovery.etcd.io/new. The URL points to a free discovery service provided by CoreOS to help connect etcd instances together by storing a list of peer addresses, metadata and the initial size of the cluster under a unique address, known as the discovery URL.
+* Generate a public/private keypairs to be used to access the droplets. More information can be found [here](https://www.digitalocean.com/community/tutorials/how-to-use-ssh-keys-with-digitalocean-droplets).
+
+#### Configuring And Booting CoreOS
+The Makefile in the `install/digitalocean/coreos` folder contains all the targets needed to configure and boot the CoreOS droplets.
+
+**The `coreos.etcd2.discovery` property in the `install/digitalocean/coreos/cloud-config` script must be updated with a new discovery URL obtained from https://discovery.etcd.io/new everytime a new cluster is built.**
+
+The `SSH_KEY_ID` variable must be set to either the ID or fingerprint your existing SSH key on DigitalOcean. These information can be obtained either from the DigitalOcean Control Plane UI or using the doctl CLI with:
+```sh
+$ doctl compute ssh-key list
+```
+
+Create 3 CoreOS droplets (with private networking enabled) on DigitalOcean.
+```sh
+$ SSH_KEY_ID=<your_ssh_key_id> make droplet
+Creating new tag "k8s-cluster"...
+Creating droplets coreos-01, coreos-02, coreos-03...
+ID         Name        Public IPv4      Public IPv6      Memory   VCPUs    Disk     Region     Image                          Status   Tags
+24345691   coreos-01                                      1024      1        30       tor1     CoreOS 1068.10.0 (stable)        new
+24345694   coreos-02                                      1024      1        30       tor1     CoreOS 1068.10.0 (stable)        new
+24345692   coreos-03                                      1024      1        30       tor1     CoreOS 1068.10.0 (stable)        new
+Completed
+
+# verify the coreos cluster
+$ doctl compute ssh core@coreos-01 --ssh-key-path <private_key_path>
+CoreOS stable (1068.10.0)
+Last login: Mon Aug 29 23:20:19 2016 from xx.xxx.xxx.xx
+core@coreos-01 ~ $ fleetctl list-machines
+MACHINE        IP               METADATA
+0fae7524...    xx.xxx.xx.xx       -
+2ac0d576...    xx.xxx.xx.xx       -
+f724fd1b...    xx.xxx.xx.xx       -
+```
+
+Other supported variables include:
+
+Variables | Description | Default
+--------- | ----------- | -------
+`COREOS_IMAGE` | CoreOS image to use for the droplets | coreos-stable
+`REGION`       | Region the droplets will reside in | TOR1
+`MEMORY_SIZE`  | Memory size of the droplets | 1GB
+`TAG`          | Arbitrary tags use to group the droplets | k8s-cluster
+`TLS_ENABLED`  | Set to `true` to enable TLS | false
+
+#### Securing The CoreOS Droplets With TLS
+All the scripts and JSON config files needed to set-up TLS are found in the `install/digitalocean/coreos/tls` folder.
+
+Download the Cloudflare [cfssl](https://github.com/cloudflare/cfssl) CLI:
+```sh
+make cfssl
+```
+
+Update the `ca-config.json` file with your CN, O, OU, C etc. Then generate a fake CA:
+```sh
+$ make cacert
+```
+
+Update the `coreos-01.json`, `coreos-02.json` and `coreos-03.json` files with the private IP addresses of the corresponding droplets. The private IP address of each droplet can be obtained either from the Digital Ocean Control Panel UI or with:
+```sh
+doctl compute droplet get 24331438 -o json | jq '.[0].networks.v4'
+```
+
+Then generate self-signed TLS certificate for all three droplets:
+```sh
+$ DROPLET_CERT_CONFIG_FILE=coreos/tls/coreos-01.json DROPLET_PUBLIC_IP=<coreos-01-public-ip> make droplet-cert
+$ DROPLET_CERT_CONFIG_FILE=coreos/tls/coreos-02.json DROPLET_PUBLIC_IP=<coreos-02-public-ip> make droplet-cert
+$ DROPLET_CERT_CONFIG_FILE=coreos/tls/coreos-03.json DROPLET_PUBLIC_IP=<coreos-03-public-ip> make droplet-cert
+
+# verify the cluster
+$ doctl compute ssh core@coreos-01
+CoreOS stable (1068.10.0)
+Last login: Thu Sep  1 00:46:40 2016 from xx.xxx.xxx.xx
+Failed Units: 1
+  iptables-restore.service
+$ core@coreos-01 ~ $ fleetctl list-machines
+  MACHINE    IP               METADATA
+2661d2e1...  xx.xxx.xxx.xxx    -
+7f8f1872...  xx.xxx.xxx.xxx    -
+970c750a...  xx.xxx.xxx.xx     -
+
+# verify etcd is running
+$ systemctl status -l etcd2
+● etcd2.service - etcd2
+  Loaded: loaded (/usr/lib64/systemd/system/etcd2.service; disabled; vendor preset: disabled)
+ Drop-In: /run/systemd/system/etcd2.service.d
+          └─20-cloudinit.conf, 30-certificate.conf
+  Active: active (running) since Thu 2016-09-01 00:46:25 UTC; 1min 21s ago
+Main PID: 2605 (etcd2)
+   Tasks: 7
+  Memory: 26.4M
+     CPU: 1.212s
+  CGroup: /system.slice/etcd2.service
+          └─2605 /usr/bin/etcd2
+
+# verify etcd TLS config
+core@coreos-01 ~ $ cat /run/systemd/system/etcd2.service.d/20-cloudinit.conf
+[Service]
+Environment="ETCD_ADVERTISE_CLIENT_URLS=https://xx.xxx.xx.xx:2379,https://xx.xxx.xx.xx:4001"
+Environment="ETCD_DISCOVERY=https://discovery.etcd.io/<token>"
+Environment="ETCD_INITIAL_ADVERTISE_PEER_URLS=https://xx.xxx.xx.xx:2380"
+Environment="ETCD_LISTEN_CLIENT_URLS=https://0.0.0.0:2379,https://0.0.0.0:4001"
+Environment="ETCD_LISTEN_PEER_URLS=https://xx.xxx.xx.xx:2380"
+
+# verify fleet is running
+core@coreos-01 ~ $ systemctl status -l fleet
+● fleet.service - fleet daemon
+   Loaded: loaded (/usr/lib64/systemd/system/fleet.service; disabled; vendor preset: disabled)
+  Drop-In: /run/systemd/system/fleet.service.d
+           └─20-cloudinit.conf, 30-certificates.conf
+   Active: active (running) since Thu 2016-09-01 00:46:25 UTC; 1min 37s ago
+ Main PID: 2623 (fleetd)
+    Tasks: 7
+   Memory: 11.1M
+      CPU: 1.143s
+   CGroup: /system.slice/fleet.service
+           └─2623 /usr/bin/fleetd
+
+# verify fleet TLS config
+core@coreos-01 ~ $ cat /run/systemd/system/fleet.service.d/20-cloudinit.conf
+[Service]
+Environment="FLEET_ETCD_SERVERS=https://xx.xxx.xx.xx:4001"
+Environment="FLEET_PUBLIC_IP=xx.xxx.xx.xx"
+```
+
+#### Clean Up
+Use the `install/digitalocean/coreos/cleanup.sh` script to destroy the coreos-01, coreos-02 and coreos-03 droplets and the `k8s-cluster` tag.
 
 ## Applications
 
@@ -165,3 +300,4 @@ root@dnsutil-1330864204-ygcp2:/# dig nginx
 ## LICENSE
 
 This project is under Apache v2 License. See the [LICENSE](LICENSE) file for the full license text.
+

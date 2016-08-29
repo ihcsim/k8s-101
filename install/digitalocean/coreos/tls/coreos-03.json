@@ -1,0 +1,20 @@
+{
+  "CN": "coreos-03",
+  "hosts": [
+    "coreos-03",
+    "coreos-03.local",
+    "127.0.0.1",
+    "<coreos-03-private-ip>"
+  ],
+  "key": {
+    "algo": "rsa",
+    "size": 2048
+  },
+  "names": [
+    {
+      "C": "CA",
+      "L": "Vancouver",
+      "ST": "BC"
+    }
+  ]
+}

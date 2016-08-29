@@ -1,0 +1,20 @@
+{
+  "CN": "ivansim.sh",
+  "hosts": [
+    "ivansim.sh",
+    "www.ivansim.sh"
+  ],
+  "key": {
+    "algo": "rsa",
+    "size": 2048
+  },
+  "names": [
+    {
+      "C": "CA",
+      "L": "Vancouver",
+      "O": "ivansim",
+      "ST": "BC",
+      "OU": "dev"
+    }
+  ]
+}
