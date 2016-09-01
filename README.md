@@ -20,15 +20,18 @@ k8s-101 contains sample scripts to install [Kubernetes](http://kubernetes.io/) a
 Install the vendored dependencies using [glide](https://github.com/Masterminds/glide).
 
 ```sh
-$ curl https://glide.sh/get | sh # install glide
+$ curl https://glide.sh/get | sh
 $ glide install
 ```
 
 ### kubectl
+The installation script for kubectl can be found in the `install/kubectl` folder. To download and install kubectl:
+```sh
+$ make install
+```
+Refer the k8s [docs](http://kubernetes.io/docs/getting-started-guides/minikube/#install-kubectl) for further information.
 
-Download and install kubectl using the `install/kubectl/install.sh` script. Refer the k8s [docs](http://kubernetes.io/docs/getting-started-guides/minikube/#install-kubectl) for further information.
-
-The `install.sh` script accepts the following environmental variables:
+The Makefile `install` target accepts the following variables:
 
 Variables | Description | Default
 --------- | ----------- | -------
@@ -37,17 +40,19 @@ OS        | Build of the binary | darwin
 ARCH      | Build of the binary | amd64
 
 ### minikube
-Run the `install/minikube/install.sh` script to install [minikube](https://github.com/kubernetes/minikube/blob/master/README.md).
+The installation script for minikube can be found in the `install/minikube` folder. To download and install [minikube](https://github.com/kubernetes/minikube/blob/master/README.md):
+```sh
+$ make install
+```
+For installation prerequisite, refer minikube installation instruction [here](https://github.com/kubernetes/minikube/blob/master/README.md#requirements).
 
-The `install.sh` script accepts the following environmental variables:
+The Makefile `install` target accepts the following variables:
 
 Variables | Description | Default
 --------- | ----------- | -------
 VERSION   | minikube version to download | v0.7.1
 PLATFORM  | Build of the binary | darwin
 ARCH      | Build of the binary | amd64
-
-For installation prerequisite, refer minikube installation instruction [here](https://github.com/kubernetes/minikube/blob/master/README.md#requirements).
 
 To start the k8s cluster, run
 ```sh
