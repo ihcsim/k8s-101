@@ -1,2 +1,5 @@
 *.csr
 *.pem
+kubeconfig
+ssl
+cloud-config

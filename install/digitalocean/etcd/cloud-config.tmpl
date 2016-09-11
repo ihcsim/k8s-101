@@ -1,0 +1,41 @@
+#cloud-config
+
+coreos:
+  etcd2:
+    discovery: <discovery-url>
+
+    # multi-region deployments, multi-cloud deployments, and Droplets without
+    # private networking need to use $public_ipv4:
+    advertise-client-urls: http://$private_ipv4:2379
+    initial-advertise-peer-urls: http://$private_ipv4:2380
+
+    # listen on the official ports 2379 and 2380
+    listen-client-urls: http://0.0.0.0:2379
+    listen-peer-urls: http://$private_ipv4:2380
+
+    heartbeat-interval: 1000
+    election-timeout: 5000
+
+  fleet:
+    agent_ttl: 60s
+    etcd_request_timeout: 5.0
+    public_ip: $private_ipv4
+
+  units:
+    - name: etcd2.service
+      command: start
+      enable: true
+    - name: fleet.service
+      command: start
+      enable: true
+    - name: flanneld.service
+      command: start
+      enable: true
+      drop-ins:
+      - name: 50-network-config.conf
+        content: |
+          [Service]
+          EnvironmentFile=/etc/environment
+          ExecStartPre=/usr/bin/etcdctl --endpoints http://${COREOS_PRIVATE_IPV4}:2379 set /coreos.com/network/config '{ "Network": "10.1.0.0/16" }'
+          Restart=on-failure
+          RestartSec=5

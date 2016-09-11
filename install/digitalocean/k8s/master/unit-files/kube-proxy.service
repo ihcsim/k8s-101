@@ -1,0 +1,16 @@
+[Unit]
+Description=Kubernetes proxy server
+After=etcd.service
+After=docker.service
+Wants=etcd.service
+Wants=docker.service
+
+[Service]
+EnvironmentFile=/etc/environment
+ExecStart=/opt/bin/kube-proxy \
+  --master=<k8s-master-private-ip>:8080
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

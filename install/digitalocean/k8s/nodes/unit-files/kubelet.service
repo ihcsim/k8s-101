@@ -1,0 +1,29 @@
+[Unit]
+Description=Kubernetes Kubelet
+After=etcd.service
+After=docker.service
+Wants=etcd.service
+Wants=docker.service
+
+[Service]
+EnvironmentFile=/etc/environment
+EnvironmentFile=/etc/k8s.env
+ExecStart=/opt/bin/kubelet \
+  --allow-privileged=true \
+  --api-servers=http://${K8S_APISERVER_PRIVATE_IPV4}:${K8S_APISERVER_INSECURE_PORT} \
+  --address=${COREOS_PRIVATE_IPV4} \
+  --hostname_override=${COREOS_PRIVATE_IPV4} \
+  --cluster-domain=cluster.local \
+  --configure-cbr0=true \
+  --container-runtime=docker \
+  --docker-endpoint=unix:///var/run/docker.sock \
+  --network-plugin=kubenet \
+  --kubeconfig=/var/lib/kubelet/kubeconfig \
+  --reconcile-cidr=true \
+  --serialize-image-pulls=false \
+  --v=2
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

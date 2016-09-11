@@ -1,18 +1,17 @@
-.PHONY: droplet
+.PHONY: etcd k8s-master k8s-nodes
 
-droplet:
-	coreos/droplet.sh
+etcd:
+	etcd/droplet.sh
 
-cacert:
-	cfssl gencert -initca coreos/tls/ca-csr.json | cfssljson -bare ca -
+k8s-master:
+	k8s/master/droplet.sh
 
-droplet-cert:
-	cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=coreos/tls/ca-config.json -profile=client-server ${DROPLET_CERT_CONFIG_FILE} | cfssljson -bare coreos
-	chmod 0644 coreos-key.pem
-	scp ca.pem coreos-key.pem coreos.pem core@${DROPLET_PUBLIC_IP}:
+k8s-ssl:
+	mkdir -p ssl
+	openssl req -x509 -newkey rsa:4096 -keyout ssl/k8s.pem -out ssl/k8s-cert.pem -nodes
 
-cfssl:
-	go get -u github.com/cloudflare/cfssl/cmd/...
+k8s-nodes:
+	k8s/nodes/droplet.sh
 
 clean:
-	coreos/cleanup.sh
+	./cleanup.sh

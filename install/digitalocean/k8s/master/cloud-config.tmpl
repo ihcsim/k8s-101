@@ -1,0 +1,51 @@
+#cloud-config
+
+coreos:
+  fleet:
+    agent_ttl: 60s
+    etcd_request_timeout: 5.0
+    public_ip: $private_ipv4
+    etcd_servers: http://<etcd-01-private-ip>:2379,http://<etcd-02-private-ip>:2379,http://<etcd-03-private-ip>:2379
+
+  flannel:
+    etcd_endpoints: http://<etcd-01-private-ip>:2379,http://<etcd-02-private-ip>:2379,http://<etcd-03-private-ip>:2379
+    interface: $public_ipv4
+
+  units:
+    - name: fleet.service
+      command: start
+      enable: true
+    - name: flanneld.service
+      command: start
+      enable: true
+      drop-ins:
+      - name: 50-network-config.conf
+        content: |
+          [Service]
+          EnvironmentFile=/etc/environment
+          ExecStartPre=/usr/bin/etcdctl --endpoints "http://<etcd-01-private-ip>:2379,http://<etcd-02-private-ip>:2379,http://<etcd-03-private-ip>:2379" set /coreos.com/network/config '{ "Network": "10.1.0.0/16" }'
+          Restart=on-failure
+          RestartSec=5
+    - name: docker.service
+      command: start
+      enable: true
+      drop-ins:
+      - name: 40-flannel.conf
+        content: |
+          [Unit]
+          Requires=flanneld.service
+          After=flanneld.service
+write_files:
+  - path: "/etc/etcd.env"
+    permission: "0644"
+    owner: "root"
+    content: |
+      ETCD_01_ENDPOINT=http://<etcd-01-private-ip>:2379
+      ETCD_02_ENDPOINT=http://<etcd-02-private-ip>:2379
+      ETCD_03_ENDPOINT=http://<etcd-03-private-ip>:2379
+  - path: "/etc/k8s.env"
+    permission: "0644"
+    owner: "root"
+    content: |
+      K8S_VERSION=<version>
+      K8S_APISERVER_INSECURE_PORT=<insecure_port>

@@ -1,0 +1,21 @@
+[Unit]
+Description=Kubernetes proxy server
+After=etcd.service
+After=docker.service
+Wants=etcd.service
+Wants=docker.service
+
+[Service]
+EnvironmentFile=/etc/environment
+EnvironmentFile=/etc/k8s.env
+ExecStart=/opt/bin/kube-proxy \
+  --master=http://${K8S_APISERVER_PRIVATE_IPV4}:${K8S_APISERVER_INSECURE_PORT} \
+  --hostname_override=${COREOS_PRIVATE_IPV4} \
+  --kubeconfig=/var/lib/kubelet/kubeconfig \
+  --proxy-mode=iptables \
+  --v=2
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
