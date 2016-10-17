@@ -1,5 +1,4 @@
-*.csr
-*.pem
-kubeconfig
-ssl
-cloud-config
+*.tfvars
+*.tfstate
+*.tfstate.backup
+.tls

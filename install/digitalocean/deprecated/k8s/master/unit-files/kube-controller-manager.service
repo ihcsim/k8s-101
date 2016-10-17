@@ -1,0 +1,23 @@
+[Unit]
+Description=Kubernetes Controller Manager
+After=docker.service
+After=kube-apiserver.service
+Wants=docker.service
+Wants=kube-apiserver.service
+
+[Service]
+EnvironmentFile=/etc/environment
+EnvironmentFile=/etc/k8s.env
+ExecStart=/opt/bin/kube-controller-manager \
+  --allocate-node-cidrs=true \
+  --cluster-cidr=10.200.0.0/16 \
+  --cluster-name=do-k8s \
+  --master=http://${COREOS_PRIVATE_IPV4}:${K8S_APISERVER_INSECURE_PORT} \
+  --service-cluster-ip-range=10.100.0.0/16 \
+  --service-account-private-key-file=/var/lib/kubernetes/k8s.pem \
+  --v=2
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

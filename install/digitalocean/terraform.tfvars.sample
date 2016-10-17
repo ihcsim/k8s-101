@@ -1,0 +1,21 @@
+do_api_token =
+
+droplet_ssh_user =
+droplet_private_key_file =
+droplet_private_key_id =
+
+etcd_discovery_url =
+
+k8s_auth_admin_token =
+k8s_auth_scheduler_token =
+k8s_auth_kubelet_token =
+
+tls_cert_subject_common_name =
+tls_cert_subject_organization =
+tls_cert_subject_organizational_unit =
+tls_cert_subject_street_address =
+tls_cert_subject_locality =
+tls_cert_subject_province =
+tls_cert_subject_postal_code =
+tls_cert_subject_country =
+tls_cert_subject_serial_number =

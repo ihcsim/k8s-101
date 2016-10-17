@@ -29,7 +29,7 @@ The installation script for kubectl can be found in the `install/kubectl` folder
 ```sh
 $ make install
 ```
-Refer the k8s [docs](http://kubernetes.io/docs/getting-started-guides/minikube/#install-kubectl) for further information.
+Refer the Kubernetes [docs](http://kubernetes.io/docs/getting-started-guides/minikube/#install-kubectl) for further information.
 
 The Makefile `install` target accepts the following variables:
 
@@ -54,32 +54,32 @@ VERSION   | minikube version to download | v0.7.1
 PLATFORM  | Build of the binary | darwin
 ARCH      | Build of the binary | amd64
 
-To start the k8s cluster, run
+To start the Kubernetes cluster, run
 ```sh
 $ minikube start --vm-driver={virtualbox|vmwarefusion|kvm|xhyve}
 ```
 
 ### hyperkube
-**Per the k8s [Getting Started Guide](http://kubernetes.io/docs/getting-started-guides/docker/), hyperkube is no longer the preferred approach to run k8s locally. Try [minikube](#minikube) instead.**
+**Per the Kubernetes [Getting Started Guide](http://kubernetes.io/docs/getting-started-guides/docker/), hyperkube is no longer the preferred approach to run Kubernetes locally. Try [minikube](#minikube) instead.**
 
-The `install/hyperkube/start.sh` can be used to start up k8s server components using [hyperkube](https://github.com/kubernetes/kubernetes/tree/master/cluster/images/hyperkube). As of k8s [1.3.0](https://github.com/kubernetes/kubernetes/commit/6c53c6a997b2f28eb4326656b9819b098454d6eb), SkyDNS and the k8s Dashboard are installed as part of hyperkube. In this installation, k8s will be set up to listen at 127.0.0.1.nip.io:8080. Modify the `HOSTNAME` variable to change the server's listening address.
+The `install/hyperkube/start.sh` can be used to start up Kubernetes server components using [hyperkube](https://github.com/kubernetes/kubernetes/tree/master/cluster/images/hyperkube). As of Kubernetes [1.3.0](https://github.com/kubernetes/kubernetes/commit/6c53c6a997b2f28eb4326656b9819b098454d6eb), SkyDNS and the Kubernetes Dashboard are installed as part of hyperkube. In this installation, Kubernetes will be set up to listen at 127.0.0.1.nip.io:8080. Modify the `HOSTNAME` variable to change the server's listening address.
 
 ```sh
 $ cd install/hyperkube
-$ ./start.sh             # run the k8s docker containers
+$ ./start.sh             # run the Kubernetes docker containers
 $ ./kubectl cluster-info # view cluster info. If this didn't work, configure kubectl as shown in the next section
 
 # for pre-1.3.0 only
 $ ./kube-system.yml      # set up the kube-system namespace
 $ ./skydns.yml           # set up skydns in the kube-system namespace
-$ ./dashboard.yml        # set up the k8s dashboard in the kube-system namespace
+$ ./dashboard.yml        # set up the Kubernetes dashboard in the kube-system namespace
 $ curl 127.0.0.1.nip.io
 ```
 
-You can also navigate to the k8s dashboard from your web browser at http://127.0.0.1.nip.io:8080/ui/.
+You can also navigate to the Kubernetes dashboard from your web browser at http://127.0.0.1.nip.io:8080/ui/.
 
 #### Configure kubectl
-This is an optional set-up that adds the hyperkube k8s cluster to your `~/.kube/config` file.
+This is an optional set-up that adds the hyperkube Kubernetes cluster to your `~/.kube/config` file.
 ```sh
 $ kubectl config set-cluster hyperkube --server=http://127.0.0.1.nip.io:8080 --api-version=1
 $ kubectl config set-context local-k8s --cluster=hyperkube
@@ -99,320 +99,280 @@ $ sudo rm -rf /var/lib/kubelet
 ```
 
 ### DigitalOcean
-This section describes the steps to deploy k8s on CoreOS DigitalOcean droplets.
+This section describes the steps to deploy a secured Kubernetes cluster on DigitalOcean. The instructions here are based on [Kelsey Hightower's _Kubernetes The Hard Way_](https://github.com/kelseyhightower/kubernetes-the-hard-way). Terraform v0.7.10 is used to automate the cluster deployment.
 
-**Note that these instructions will create 3 etcd droplets and 3 k8s nodes on DigitalOcean, which aren't free.**
+**Note that the droplets created as part of this tutorial aren't free.**
 
-The following is a list of prerequisites:
-* The DigitalOcean [doctl](https://github.com/digitalocean/doctl) CLI version 1.4.x.
-* Generate a new DigitalOcean API token following the instruction found [here](https://github.com/digitalocean/doctl#initialization).
-* Generate a public/private keypairs to be used to access the droplets. More information can be found [here](https://www.digitalocean.com/community/tutorials/how-to-use-ssh-keys-with-digitalocean-droplets).
+By default, the cluster is comprised of 3 etcd instances, 1 Kubernetes Master and 2 Kubernetes Workers.
 
-The Makefile in the `install/digitalocean/` folder contains all the targets needed to configure and boot the CoreOS droplets. The `SSH_KEY_ID` variable must be assigned to boot the CoreOS droplets correctly. This variable can be either the ID or fingerprint your existing SSH key on DigitalOcean. These information can be obtained either from the DigitalOcean Control Plane UI or using the doctl CLI with:
+Prior to running Terraform to set up the cluster, create a copy of the `terraform.tfvars` file based on the provided `terraform.tfvars.sample` file. In particular, the following variables will be of special interest:
+
+Variables            | Description
+------------------   | -----------
+`etcd_count`         |
+`k8s_worker_count`   |
+`etcd_discovery_url` | **A new service discovery URL must be obtained from [here](https://discovery.etcd.io/new?size=3) everytime a new cluster is created.**
+
+Once all the required variables are provided, run:
 ```sh
-$ doctl compute ssh-key list
+$ terraform apply
 ```
 
-#### Booting Etcd Droplets
-Use the `make etcd` target to create three etcd droplets (with private networking enabled) on DigitalOcean. The default OS image used is the `coreos-stable` image. This can be overriden using the `COREOS_IMAGE` variable.
-
-A new discovery URL is automatically obtained from https://discovery.etcd.io/new?size=$CLUSTER_SIZE to help connect etcd instances together by storing a list of peer addresses, metadata and the initial size of the cluster under this unique address.
+If succeeded, the droplets' name and public addresses will be output:
 ```sh
-$ SSH_KEY_ID=<ssh-key-id> make droplet-etcd
-coreos/droplet.sh
-Using discovery token xxxxxxxxxxxx...
-Creating new tag "k8s-cluster"...
-Name           Droplet Count
-k8s-cluster        0
-Creating droplets etcd-01, etcd-02, etcd-03...
-ID             Name       Public IPv4        Public IPv6        Memory     VCPUs      Disk       Region                Image                  Status     Tags
-25094609       etcd-03                                           1024       1          30         sfo2       CoreOS 1122.2.0 (stable)           new
-25094612       etcd-01                                           1024       1          30         sfo2       CoreOS 1122.2.0 (stable)           new
-25094611       etcd-02                                           1024       1          30         sfo2       CoreOS 1122.2.0 (stable)           new
-Completed
+...
+Apply complete! Resources: 25 added, 0 changed, 0 destroyed.
+
+The state of your infrastructure has been saved to the path
+below. This state is required to modify and destroy your
+infrastructure, so keep it safe. To inspect the complete state
+use the `terraform show` command.
+
+State path: terraform.tfstate
+
+Outputs:
+
+Kubernetes Master = https://xxx.xxx.xxx.xxx:xxxx
+etcd = [
+    https://xxx.xxx.xxx.xxx:xxxx,
+    https://xxx.xxx.xxx.xxx:xxxx,
+    https://xxx.xxx.xxx.xxx:Xxxx
+]
 ```
-Now we will verify the etcd droplets.
+
+To verify that the etcd cluster is accessible from an external host, run the following command:
 ```sh
-# ssh into the droplet
-$ doctl compute ssh core@etcd-01 --ssh-key-path <private_key_path>
-CoreOS stable (1068.10.0)
-Last login: Mon Aug 29 23:20:19 2016 from xx.xxx.xxx.xx
-core@coreos-01 ~ $ fleetctl list-machines
-MACHINE        IP               METADATA
-0fae7524...    xx.xxx.xx.xx       -
-2ac0d576...    xx.xxx.xx.xx       -
-f724fd1b...    xx.xxx.xx.xx       -
-
-# verify etcd2 is running
-core@coreos-01 ~ $ systemctl status etcd2
-● etcd2.service - etcd2
-   Loaded: loaded (/usr/lib64/systemd/system/etcd2.service; disabled; vendor preset: disabled)
-  Drop-In: /run/systemd/system/etcd2.service.d
-           └─20-cloudinit.conf
-   Active: active (running) since Tue 2016-09-06 01:06:27 UTC; 6min ago
- Main PID: 1161 (etcd2)
-    Tasks: 7
-   Memory: 33.8M
-      CPU: 2.437s
-   CGroup: /system.slice/etcd2.service
-           └─1161 /usr/bin/etcd2
-
-Sep 06 01:06:27 coreos-01 etcd2[1161]: the connection with 295aef39c0c5bca5 became active
-Sep 06 01:06:27 coreos-01 etcd2[1161]: added member 295aef39c0c5bca5 [http://xx.xxx.xx.xx:2380] to cluster 4ddb9591cfdf3767
-Sep 06 01:06:27 coreos-01 etcd2[1161]: added local member 61df7dc6fd3da92f [http://xx.xxx.xx.xx:2380] to cluster 4ddb9591cfdf3767
-Sep 06 01:06:27 coreos-01 etcd2[1161]: added member a0900540d2dd65f9 [http://xx.xxx.xx.xx:2380] to cluster 4ddb9591cfdf3767
-Sep 06 01:06:28 coreos-01 etcd2[1161]: 61df7dc6fd3da92f [term: 1] received a MsgVote message with higher term from 295aef39c0c5bca5 [term: 2]
-Sep 06 01:06:28 coreos-01 etcd2[1161]: 61df7dc6fd3da92f became follower at term 2
-Sep 06 01:06:28 coreos-01 etcd2[1161]: 61df7dc6fd3da92f [logterm: 1, index: 3, vote: 0] voted for 295aef39c0c5bca5 [logterm: 1, index: 3] at term 2
-Sep 06 01:06:28 coreos-01 etcd2[1161]: raft.node: 61df7dc6fd3da92f elected leader 295aef39c0c5bca5 at term 2
-Sep 06 01:06:28 coreos-01 etcd2[1161]: published {Name:89417d637a31497b94058edfdcff8f6d ClientURLs:[http://xx.xxx.xx.xx:2379 http://xx.xxx.xx.xx:4001]} to cluster 4ddb9591cfdf3767
-Sep 06 01:06:28 coreos-01 etcd2[1161]: set the initial cluster version to 2.3
-
-# verifying fleet is running
-$ systemctl status fleet
-● fleet.service - fleet daemon
-   Loaded: loaded (/usr/lib64/systemd/system/fleet.service; disabled; vendor preset: disabled)
-  Drop-In: /run/systemd/system/fleet.service.d
-            └─20-cloudinit.conf
-   Active: active (running) since Thu 2016-09-08 04:55:17 UTC; 2min 11s ago
- Main PID: 1143 (fleetd)
-    Tasks: 7
-   Memory: 17.7M
-      CPU: 1.481s
-   CGroup: /system.slice/fleet.service
-            └─1143 /usr/bin/fleetd
-
-Sep 08 04:55:17 etcd-01 systemd[1]: Started fleet daemon.
-Sep 08 04:55:17 etcd-01 fleetd[1143]: INFO fleetd.go:64: Starting fleetd version 0.11.7
-Sep 08 04:55:17 etcd-01 fleetd[1143]: INFO fleetd.go:168: No provided or default config file found - proceeding without
-Sep 08 04:55:17 etcd-01 fleetd[1143]: INFO server.go:157: Establishing etcd connectivity
-Sep 08 04:55:19 etcd-01 fleetd[1143]: INFO server.go:168: Starting server components
-Sep 08 04:55:19 etcd-01 fleetd[1143]: ERROR engine.go:156: Failed updating cluster engine version from 0 to 1: 101: Compare failed ([0 != 1]) [11]
-Sep 08 04:55:21 etcd-01 fleetd[1143]: INFO engine.go:79: Engine leader is 2ae37dcd6b564da988b1434dbf3833e3
-
-# verify flanneld is running
-core@etcd-01 ~ $ systemctl status flanneld
-● flanneld.service - Network fabric for containers
-  Loaded: loaded (/usr/lib64/systemd/system/flanneld.service; disabled; vendor preset: disabled)
- Drop-In: /etc/systemd/system/flanneld.service.d
-          └─50-network-config.conf
-  Active: active (running) since Thu 2016-09-08 04:55:30 UTC; 4min 14s ago
-    Docs: https://github.com/coreos/flannel
- Process: 1310 ExecStartPost=/usr/bin/rkt run --net=host --stage1-path=/usr/lib/rkt/stage1-images/stage1-fly.aci --insecure-options=image --volume runvol,kind=host,source=/run,readOnly=false --mount volu
- Process: 1229 ExecStartPre=/usr/bin/etcdctl --endpoints http://${COREOS_PRIVATE_IPV4}:2379 set /coreos.com/network/config { "Network": "10.1.0.0/16" } (code=exited, status=0/SUCCESS)
- Process: 1224 ExecStartPre=/usr/bin/mkdir -p ${ETCD_SSL_DIR} (code=exited, status=0/SUCCESS)
- Process: 1216 ExecStartPre=/usr/bin/mkdir -p /run/flannel (code=exited, status=0/SUCCESS)
- Process: 1212 ExecStartPre=/sbin/modprobe ip_tables (code=exited, status=0/SUCCESS)
-Main PID: 1237 (flanneld)
-   Tasks: 7
-  Memory: 90.7M
-     CPU: 3.207s
-  CGroup: /system.slice/flanneld.service
-          └─1237 /opt/bin/flanneld --ip-masq=true
-
-Sep 08 04:55:30 etcd-01 rkt[1237]: I0908 04:55:30.122080 01237 ipmasq.go:50] Adding iptables rule: FLANNEL -d 10.1.0.0/16 -j ACCEPT
-Sep 08 04:55:30 etcd-01 rkt[1237]: I0908 04:55:30.136204 01237 ipmasq.go:50] Adding iptables rule: FLANNEL ! -d 224.0.0.0/4 -j MASQUERADE
-Sep 08 04:55:30 etcd-01 rkt[1237]: I0908 04:55:30.155007 01237 ipmasq.go:50] Adding iptables rule: POSTROUTING -s 10.1.0.0/16 -j FLANNEL
-Sep 08 04:55:30 etcd-01 rkt[1237]: I0908 04:55:30.163863 01237 ipmasq.go:50] Adding iptables rule: POSTROUTING ! -s 10.1.0.0/16 -d 10.1.0.0/16 -j MASQUERADE
-Sep 08 04:55:30 etcd-01 rkt[1237]: I0908 04:55:30.184654 01237 udp.go:222] Watching for new subnet leases
-Sep 08 04:55:30 etcd-01 rkt[1310]: image: using image from file /usr/lib/rkt/stage1-images/stage1-fly.aci
-Sep 08 04:55:30 etcd-01 rkt[1310]: image: using image from local store for image name quay.io/coreos/flannel:0.5.5
-Sep 08 04:55:30 etcd-01 systemd[1]: Started Network fabric for containers.
-Sep 08 04:55:31 etcd-01 rkt[1237]: I0908 04:55:31.795220 01237 udp.go:247] Subnet added: 10.1.101.0/24
-Sep 08 04:55:38 etcd-01 rkt[1237]: I0908 04:55:38.187175 01237 udp.go:247] Subnet added: 10.1.39.0/24
+$ etcdctl --endpoints https://<etcd-00-public-ip>:xxxx,https://<etcd-01-public-ip>:xxxx,https://<etcd-02-public-ip>:xxxx \
+          --cert-file <your-cert> \
+          --key-file <your-key> \
+          --ca-file <your-ca-cert>
+          cluster-health
+member fec6653bf64f68d is healthy: got healthy result from https://<etcd-00-public-ip>:xxxx
+member 4e62ba9090bc7797 is healthy: got healthy result from https://<etcd-01-public-ip>:xxxx
+member b5b0591f9b16568b is healthy: got healthy result from https://<etcd-02-public-ip>:xxxx
+cluster is healthy
 ```
+The `etcdctl` client on each droplet within the cluster is pre-configured to target the private network interfaces and employ the correct TLS certs and keys for secure inter-cluster communication.
 
-The following is a list of all the variables supported by the `make etcd` target:
-
-Variables      | Description | Default
--------------- | ----------- | -------
-`COREOS_IMAGE` | CoreOS image to use for the droplets | coreos-stable
-`REGION`       | Region the droplets will reside in | TOR1
-`MEMORY_SIZE`  | Memory size of the droplets | 1GB
-`TAG`          | Arbitrary tags use to group the droplets | k8s-cluster
-`TLS_ENABLED`  | Set to `true` to enable TLS | false
-`CLUSTER_SIZE` | The total number of etcd droplets in the cluster. This will be used as a parameter to the discovery URL generator | 3
-
-Repeat the above steps with the etcd-02 and etcd-03 droplets. You should see the subnets of the other droplets are being added by flannel.
-
-#### Booting the K8s Master And Node Droplets
-Use the `make k8s-master` and `make k8s-nodes` targets to create one k8s master and two k8s node droplets, respectively, (with private networking enabled) on DigitalOcean. The default OS image used is the `coreos-stable` image. This can be overridden using the `COREOS_IMAGE` variable.
+To verify that the Kubernetes cluster is accessible from an external host, run the following `curl` command:
 ```sh
-$ SSH_KEY_ID=xxxxxx ETCD_01_PRIVATE_IP=xx.xxx.xxx.xxx ETCD_02_PRIVATE_IP=xx.xxx.xxx.xxx ETCD_03_PRIVATE_IP=xx.xxx.xxx.xxx make k8s-master
+$ curl --cacert <your-ca-cert> \
+       --key <your-client-key> \
+       --cert <your-cert> \
+       https://<k8s-master-public-ipv4>:<k8s-apiserver-secure-port>
+{
+  "paths": [
+    "/api",
+    "/api/v1",
+    "/apis",
+    "/apis/apps",
+    "/apis/apps/v1alpha1",
+    "/apis/authentication.k8s.io",
+    "/apis/authentication.k8s.io/v1beta1",
+    "/apis/authorization.k8s.io",
+    "/apis/authorization.k8s.io/v1beta1",
+    "/apis/autoscaling",
+    "/apis/autoscaling/v1",
+    "/apis/batch",
+    "/apis/batch/v1",
+    "/apis/batch/v2alpha1",
+    "/apis/certificates.k8s.io",
+    "/apis/certificates.k8s.io/v1alpha1",
+    "/apis/extensions",
+    "/apis/extensions/v1beta1",
+    "/apis/policy",
+    "/apis/policy/v1alpha1",
+    "/apis/rbac.authorization.k8s.io",
+    "/apis/rbac.authorization.k8s.io/v1alpha1",
+    "/apis/storage.k8s.io",
+    "/apis/storage.k8s.io/v1beta1",
+    "/healthz",
+    "/healthz/ping",
+    "/logs",
+    "/metrics",
+    "/swagger-ui/",
+    "/swaggerapi/",
+    "/ui/",
+    "/version"
+  ]
+}
 ```
 
-Once the droplets are ready, ensure that Docker is running with flannel, where the Docker `bip` and `mtu` options should match the `FLANNEL_SUBNET` and `FLANNEL_MTU`, respectively.
+You can also set up `kubectl` to target your Kubernetes cluster by using the following commands:
 ```sh
-$ doctl compute ssh core@k8s-master
-$ systemctl status docker
-● docker.service - Docker Application Container Engine
-   Loaded: loaded (/usr/lib64/systemd/system/docker.service; enabled; vendor preset: disabled)
-  Drop-In: /etc/systemd/system/docker.service.d
-           └─40-flannel.conf
-   Active: active (running) since Sun 2016-09-11 05:54:22 UTC; 16h ago
-     Docs: http://docs.docker.com
- Main PID: 1315 (docker)
-    Tasks: 7
-   Memory: 35.3M
-      CPU: 15.504s
-   CGroup: /system.slice/docker.service
-           └─1315 docker daemon --host=fd:// --exec-opt native.cgroupdriver=systemd --bip=xx.xx.xx.xx/24 --mtu=xxxx --ip-masq=false --selinux-enabled
-
-Sep 11 05:54:22 k8s-master systemd[1]: Started Docker Application Container Engine.
-Sep 11 05:54:23 k8s-master dockerd[1315]: time="2016-09-11T05:54:23.072764719Z" level=info msg="Graph migration to content-addressability took 0.00 seconds"
-Sep 11 05:54:23 k8s-master dockerd[1315]: time="2016-09-11T05:54:23.106314196Z" level=info msg="Firewalld running: false"
-Sep 11 05:54:23 k8s-master dockerd[1315]: time="2016-09-11T05:54:23.351844420Z" level=info msg="Loading containers: start."
-Sep 11 05:54:23 k8s-master dockerd[1315]: time="2016-09-11T05:54:23.352244388Z" level=info msg="Loading containers: done."
-Sep 11 05:54:23 k8s-master dockerd[1315]: time="2016-09-11T05:54:23.352547874Z" level=info msg="Daemon has completed initialization"
-Sep 11 05:54:23 k8s-master dockerd[1315]: time="2016-09-11T05:54:23.352867806Z" level=info msg="Docker daemon" commit=1f8f545 execdriver=native-0.2 graphdriver=overlay version=1.10.3
-Sep 11 05:54:23 k8s-master dockerd[1315]: time="2016-09-11T05:54:23.362295339Z" level=info msg="API listen on /var/run/docker.sock"
-```
-
-Download the binaries for the k8s-master.
-```sh
-$ doctl compute ssh core@k8s-master
-$ sudo mkdir -p /opt/bin
-$ sudo wget -P /opt/bin https://storage.googleapis.com/kubernetes-release/release/${K8S_VERSION}/bin/linux/amd64/kube-apiserver
-$ sudo wget -P /opt/bin https://storage.googleapis.com/kubernetes-release/release/${K8S_VERSION}/bin/linux/amd64/kube-controller-manager
-$ sudo wget -P /opt/bin https://storage.googleapis.com/kubernetes-release/release/${K8S_VERSION}/bin/linux/amd64/kube-scheduler
-$ sudo wget -P /opt/bin https://storage.googleapis.com/kubernetes-release/release/${K8S_VERSION}/bin/linux/amd64/kubectl
-$ sudo chmod +x /opt/bin/kube*
-```
-
-Generate and copy the `k8s.pem` file to the k8s-master droplet. This PEM file is used to create a service account token which is used to authenticate requests to the API Server. For more information, refer this [post](https://github.com/kubernetes/kubernetes/issues/11222#issuecomment-125827374).
-```
-# on k8s-master
-$ sudo mkdir -p /var/lib/kubernetes
-$ sudo chown core:core /var/lib/kubernetes
-
-# on your local machine
-$ make k8s-ssl
-$ scp ssl/k8s.pem core@<k8s-master-public-ip>:/var/lib/kubernetes
-```
-
-Copy the systemd unit files from this repository to the k8s-master droplet.
-```sh
-$ scp k8s/master/unit-files/* core@<k8s-master-public-ip>:/etc/systemd/system/
-$ doctl compute ssh core@k8s-master
-$ cd /etc/systemd/system
-$ sudo systemctl enable k8s-*.service
-$ sudo systemctl start k8s-*.service
-```
-
-Now we can run some tests to make sure the k8s master droplet is ready.
-```sh
-# verify the API server
-$ curl http://<k8s-master-public-ip>:<apiserver-insecure-port>
-$ kubectl get componentstatuses
-NAME                 STATUS    MESSAGE              ERROR
-controller-manager   Healthy   ok
-scheduler            Healthy   ok
-etcd-0               Healthy   {"health": "true"}
-etcd-2               Healthy   {"health": "true"}
-etcd-1               Healthy   {"health": "true"}
-```
-
-Now we are ready set up the k8s nodes. Obtain the private IP address of the k8s-master droplet, and use it to set up the k8s-node-01 and k8s-node-02 droplets.
-```
-$ APISERVER_PRIVATE_IPV4=xx.xxx.xxx.xxx SSH_KEY_ID=xxxxxx ETCD_01_PRIVATE_IP=xx.xxx.xxx.xxx ETCD_02_PRIVATE_IP=xx.xxx.xxx.xxx ETCD_03_PRIVATE_IP=xx.xxx.xxx.xxx make k8s-nodes
-```
-
-Copy the `k8s/cni/install.sh` script to both the `k8s-node-01` and `k8s-node-02` droplets. More information on installing CNI can be found [here](https://github.com/kelseyhightower/kubernetes-the-hard-way/blob/master/docs/05-kubernetes-worker.md#kubelet).
-```sh
-$ scp k8s/cni/install.sh core@<k8s-node-public-ip>:/opt/
-$ doctl compute ssh core@k8s-node-01
-$ /opt/install.sh
-```
-
-Download the binaries for the k8s nodes.
-```sh
-# on the k8s node droplet
-$ sudo mkdir -p /opt/bin
-$ sudo wget -P /opt/bin https://storage.googleapis.com/kubernetes-release/release/${K8S_VERSION}/bin/linux/amd64/kubectl
-$ sudo wget -P /opt/bin https://storage.googleapis.com/kubernetes-release/release/${K8S_VERSION}/bin/linux/amd64/kube-proxy
-$ sudo wget -P /opt/bin https://storage.googleapis.com/kubernetes-release/release/${K8S_VERSION}/bin/linux/amd64/kubelet
-$ sudo chmod +x /opt/bin/kube*
-```
-
-Use the `k8s/kubelet/config.sh` script to set up the kubelet's `kubeconfig` file. The k8s-master droplet's private IP address and a random user token must be provided using the `APISERVER_PRIVATE_IP` and `USER_TOKEN` variables, respectively.
-```sh
-# on the k8s node droplet
-$ sudo mkdir -p /var/lib/kubelet/
-$ sudo chown core:core /var/lib/kubelet/
-
-# on your local
-$ APISERVER_PRIVATE_IPV4=xx.xx.xxx.xx USER_TOKEN=sometoken ./config.sh
-$ scp kubeconfig core@<k8s-node-01-public-ip>://var/lib/kubelet/
-```
-
-The following is a list of variables supported by the `make droplet-k8s` target:
-
-Variables                       | Description | Default Value
-------------------------------- | ----------- | -------------
-`SSH_KEY_ID`         (Required) | ID of the SSH key to be used to create the droplets | Can be obtained using the `doctl compute ssh-key list` command
-`ETCD_01_PRIVATE_IP` (Required) | Private IP address of the `etcd-01` droplet    | Can be obtained using the `doctl compute droplet get -o json` command
-`ETCD_02_PRIVATE_IP` (Required) | Private IP address of the `etcd-02` droplet    | Can be obtained using the `doctl compute droplet  get -o json` command
-`ETCD_03_PRIVATE_IP` (Required) | Private IP address of the `etcd-03` droplet    | Can be obtained using the `doctl compute droplet get -o json` command
-`APISERVER_PRIVATE_IPV4`        | Private IP address of the `k8s-master` droplet | Can be obtained using the `doctl compute droplet get -o json` command
-`K8S_VERSION`                   | k8s version                 | 1.3.6
-`APISERVER_INSECURE_PORT`       | HTTP port of the API Server | 7000
-
-Once all the droplets are up, you should see their subnets are being added by flannel by running `systemctl status flanneld`.
-
-#### Verification
-Run the following commands to make sure the cluster is live:
-```sh
+$ kubectl config set-cluster do-k8s \
+          --server=https://<k8s-master-public-ipv4>:<k8s-apiserver-secure-port> \
+          --certificate-authority=<your-ca-cert>
+$ kubectl config set-credentials cluster-admin \
+          --client-certificate=<your-client-cert> \
+          --client-key=<your-client-key>
+$ kubectl config set-context do-k8s --cluster=do-k8s --user=cluster-admin
+$ kubectl config use-context do-k8s
 $ kubectl cluster-info
-Kubernetes master is running at http://138.68.41.253:7000
+Kubernetes master is running at https://xxx.xxx.xxx.xxx:xxxx
 
 To further debug and diagnose cluster problems, use 'kubectl cluster-info dump'.
+$ kubectl get cs
+NAME                 STATUS      MESSAGE                                                               ERROR
+scheduler            Healthy     ok
+controller-manager   Healthy     ok
+etcd-0               Unhealthy   Get https://xxx.xxx.xxx.xxx:xxxx/health: remote error: bad certificate
+etcd-2               Unhealthy   Get https://xxx.xxx.xxx.xxx:xxxx/health: remote error: bad certificate
+etcd-1               Unhealthy   Get https://xxx.xxx.xxx.xxx:xxxx/health: remote error: bad certificate
 
-$ kubectl get componentstatus
-NAME                 STATUS    MESSAGE              ERROR
-controller-manager   Healthy   ok
-scheduler            Healthy   ok
-etcd-0               Healthy   {"health": "true"}
-etcd-1               Healthy   {"health": "true"}
-etcd-2               Healthy   {"health": "true"}
-
-$ kubectl get node
-NAME             STATUS     AGE
-10.138.16.0      Ready      4h
-10.138.224.254   Ready      10h
+$ kubectl get nodes
+xxx.xxx.xxx.xxx    Ready      6m
+xxx.xxx.xxx.xxx    Ready      6m
 ```
 
-Now we can deploy a few sample applications to the cluster:
-```
-# deploy the ticker app that logs timestamp
-$ kubectl create -f apps/ticker/deployment.yml
+Test the Kubernetes cluster further by deploying some applications to it:
+```sh
+$ kubectl create -f apps/ticker/deployment
 $ kubectl get po
-NAME                            READY     STATUS    RESTARTS   AGE
-ticker-2601494469-gumx0         1/1       Running   0          11m
-ticker-2601494469-soy92         1/1       Running   0          11m
-$ kubectl logs ticker-2601494469-gumx0
-735: Sun Oct  9 05:14:50 UTC 2016
-736: Sun Oct  9 05:14:51 UTC 2016
-737: Sun Oct  9 05:14:52 UTC 2016
-738: Sun Oct  9 05:14:53 UTC 2016
-739: Sun Oct  9 05:14:54 UTC 2016
-740: Sun Oct  9 05:14:55 UTC 2016
-741: Sun Oct  9 05:14:56 UTC 2016
-742: Sun Oct  9 05:14:57 UTC 2016
+NAME                      READY     STATUS    RESTARTS   AGE
+ticker-1710468970-bv30t   1/1       Running   0          13m
+ticker-1710468970-tnvls   1/1       Running   0          13m
+$ kubectl logs ticker-1710468970-bv30t
+837: Thu Dec  1 04:24:19 UTC 2016
+838: Thu Dec  1 04:24:20 UTC 2016
+839: Thu Dec  1 04:24:21 UTC 2016
+840: Thu Dec  1 04:24:22 UTC 2016
+841: Thu Dec  1 04:24:23 UTC 2016
+842: Thu Dec  1 04:24:24 UTC 2016
+843: Thu Dec  1 04:24:25 UTC 2016
+844: Thu Dec  1 04:24:26 UTC 2016
+845: Thu Dec  1 04:24:27 UTC 2016
+846: Thu Dec  1 04:24:28 UTC 2016
+847: Thu Dec  1 04:24:29 UTC 2016
+848: Thu Dec  1 04:24:30 UTC 2016
+849: Thu Dec  1 04:24:31 UTC 2016
+850: Thu Dec  1 04:24:32 UTC 2016
+851: Thu Dec  1 04:24:33 UTC 2016
+852: Thu Dec  1 04:24:34 UTC 2016
+853: Thu Dec  1 04:24:35 UTC 2016
+854: Thu Dec  1 04:24:36 UTC 2016
 
-# deploy the guestbook app
+$ kubectl run nginx --image=nginx --port=80 --replicas=3
+$ kubectl get po -o wide
+NAME                      READY     STATUS    RESTARTS   AGE       IP           NODE
+nginx-3449338310-7quja    1/1       Running   0          16m       10.200.0.3   10.138.48.74
+nginx-3449338310-m4mlv    1/1       Running   0          16m       10.200.1.3   10.138.208.238
+nginx-3449338310-q9lj5    1/1       Running   0          16m       10.200.0.4   10.138.48.74
+$ kubectl expose deployment nginx --type NodePort
+$ NODE_PORT=`kubectl get svc nginx --output=jsonpath='{range .spec.ports[0]}{.nodePort}'`
+$ curl http://<k8s_worker_public_ip>:$NODE_PORT # will have to find out which worker the pod is on
+<!DOCTYPE html>
+<html>
+<head>
+<title>Welcome to nginx!</title>
+<style>
+    body {
+        width: 35em;
+        margin: 0 auto;
+        font-family: Tahoma, Verdana, Arial, sans-serif;
+    }
+</style>
+</head>
+<body>
+<h1>Welcome to nginx!</h1>
+<p>If you see this page, the nginx web server is successfully installed and
+working. Further configuration is required.</p>
+
+<p>For online documentation and support please refer to
+<a href="http://nginx.org/">nginx.org</a>.<br/>
+Commercial support is available at
+<a href="http://nginx.com/">nginx.com</a>.</p>
+
+<p><em>Thank you for using nginx.</em></p>
+</body>
+</html>
+
 $ kubectl create -f apps/guestbook/redis.yml
 $ kubectl create -f apps/guestbook/frontend.yml
+$ curl http://<k8s_worker_public_ip>:32100/
+<html ng-app="redis">
+  <head>
+    <title>Guestbook</title>
+    <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.12/angular.min.js"></script>
+    <script src="controllers.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/angular-ui-bootstrap/0.13.0/ui-bootstrap-tpls.js"></script>
+  </head>
+  <body ng-controller="RedisCtrl">
+    <div style="width: 50%; margin-left: 20px">
+      <h2>Guestbook</h2>
+    <form>
+    <fieldset>
+    <input ng-model="msg" placeholder="Messages" class="form-control" type="text" name="input"><br>
+    <button type="button" class="btn btn-primary" ng-click="controller.onRedis()">Submit</button>
+    </fieldset>
+    </form>
+    <div>
+      <div ng-repeat="msg in messages track by $index">
+        {{msg}}
+      </div>
+    </div>
+    </div>
+  </body>
+</html>
 ```
 
-The guestbook app should be accessible from your browser at http://`<k8s-node-public-ip>`:32100.
+#### Known Issues
 
-#### Clean Up
-Use the `install/digitalocean/coreos/cleanup.sh` script to destroy the coreos-01, coreos-02 and coreos-03 droplets and the `k8s-cluster` tag.
+At the time of this writing, the following is a list of [known Kubernetes issue] seen in our error logs:
+
+1. [35773](https://github.com/kubernetes/kubernetes/issues/35773) where the etcd instances are reported as unhealthy when the `client-cert-auth` option is enabled.
+1. [22586](https://github.com/kubernetes/kubernetes/issues/22586) where the kubelet's logs show a `conversion.go:128 failed to handle multiple devices for container. Skipping Filesystem stats` error message.
+1. [26000](https://github.com/kubernetes/kubernetes/issues/26000) where the kubelet's image garbage collection failed.
+
+#### Service Management
+The Kubernetes cluster and all the supporting services (docker, [etcd](https://github.com/coreos/etcd), [fleet](https://github.com/coreos/fleet), [flannel](https://github.com/coreos/flannel) and [locksmith](https://github.com/coreos/locksmith)) are managed by [systemd](https://www.freedesktop.org/wiki/Software/systemd/) on CoreOS. The [cloud-config](https://coreos.com/os/docs/latest/cloud-config.html) files used to declare these services are found in the `etcd/` and `k8s/` folders.
+
+#### TLS
+**This set-up uses the Terraform [TLS Provider](https://www.terraform.io/docs/providers/tls/index.html) to generate RSA private keys, CSR and certificates for development purposes only. The resources generated will be saved in the Terraform state file as plain text. Make sure the Terraform state file is stored securely.**
+
+**_Certificate Authority_**
+
+The CA cert used to sign all the cluster SSL/TLS certificates are declared in the `ca.tf` file.
+
+**_etcd_**
+
+All client-to-server and peer-to-peer communication for the etcd cluster are secured by the TLS certificate declared as the `etcd_cert` resource in the `etcd.tf` file. The private key and CSR used to generate the certificate are also found in the same file. All etcd instances listen to their peers on their respective host's private IP address. Clients such as `etcdctl` can connect to the cluster via both public and private network interfaces. In the current set-up, the etcd cluster uses the same certificate for all client-to-server and peer-to-peer communication. In a production environment, it is encouraged to use different certs for these different purposes.
+
+**_Kubernetes_**
+
+All communication between the API Server, etcd, Kubelet and clients such as Kubectl are secured with TLS certs. The certificate is declared as the `k8s_cert` resource in the `k8s.tf` file. The private key and CSR used to generate the certificate are also found in the same file. Since the Controller Manager and Scheduler resides on the same host as the API Server, they commuicate with the API Server via its insecure network interface.
+
+Also, the Controller Manager uses the CA cert and key declared in `ca.tf` to serve cluster-scoped certificates-issuing requests. Refer to the [Master Node Communication docs](http://kubernetes.io/docs/admin/master-node-communication/#controller-manager-configuration) for details.
+
+#### Authentication
+In this set-up, the Kubernetes API Server is configured to authenticate incoming API requests using the client's X509 certs and a static token file. Per the Kubernetes [authentication docs](http://kubernetes.io/docs/admin/authentication/#authentication-strategies), the first authentication module to successfully authenticate the client's request will short-circuit the evaluation process.
+
+The CA cert that is used to sign the client's cert is passed to the API Server using the `--client-ca-file=SOMEFILE` option. This configuration is found in the `k8s/master/unit-files/kube-apiserver.service` unit file. A client (such as `kubectl`) authenticates with the API Server by providing its cert and private key as command line options as seen in the above `kubectl` command example. For more information on the Kubernetes x509 client cert authentication strategy, refer to the docs [here](http://kubernetes.io/docs/admin/authentication/#x509-client-certs).
+
+The API server is also set up to read bearer tokens from the file specified as the `--token-auth-file=SOMEFILE` option. This configuration is found in the `k8s/master/unit-files/kube-apiserver.service` unit file. The template of the token file can be found in the `k8s/master/auth/token.csv` file. The tokens for the two predefined users (`admin` and `kubelet`) are specified using the variables `k8s_apiserver_token_admin` and `k8s_apiserver_token_kubelet`, respectively. A client (such as `kubectl`) can authenticate with the API Server by putting the bearer token in its HTTP Header in the form of:
+```
+Authorization: Bearer 31ada4fd-adec-460c-809a-9e56ceb7526
+```
+For more information on the bearer token authentication strategy, refer to the docs [here](http://kubernetes.io/docs/admin/authentication/#static-token-file).
+
+The Kubelet authenticates with the API Server using the token-based approach, where the `kubelet` user's token is specified in the Kubelet's `kubeconfig` file.
+
+The Controller Manager uses the RSA private key `k8s_key` to sign any bearer tokens for all new non-default service accounts. The resource for this key is declared in the `k8s.tf` file.
+
+#### Authorization
+HTTP requests sent to the API Server's secure port are authorized using the [_Attribute-Based Access COntrol_ (ABAC)](http://kubernetes.io/docs/admin/authorization/) authorization scheme. The authorization policy file is provided to the API Server using the `--authorization-policy-file=SOMEFILE` option as seen in the `k8s/master/unit-files/kube-apiserver.service` unit file.
+
+In this set-up, 5 policy objects are provided; one policy for each user defined in the `k8s/master/auth/token.csv` file, one `*` policy and one service account policy. The `admin`, `scheduler` and `kubelet` users are authorized to access all resources (such as pods) and API groups (such as `extensions`) in all namespaces. Non-resource paths (such as `/version` and `/apis`) are read-only accessible by any users. The service account group has access to all resources, API groups and non-resource paths in all namespaces.
+
+#### Droplets DNS
+
+#### Kubernetes DNS
 
 ## Applications
 
 ### GuestBook
-The [guestBook](/apps/guestbook) application is based on the example from the k8s [documentation](https://github.com/kubernetes/kubernetes/tree/release-1.2/examples/guestbook/).
+The [guestBook](/apps/guestbook) application is based on the example from the Kubernetes [documentation](https://github.com/kubernetes/kubernetes/tree/release-1.2/examples/guestbook/).
 
 To deploy the application:
 ```sh
@@ -445,7 +405,7 @@ $ kubectl create -f app/ticker/deployment.yml # create the ticker deployment wit
 ```
 
 ### nginx
-The [nginx](http://nginx.org/en/) server front by a secure k8s TLS service. The code to generate the self-signed RSA key and certificate is based on this k8s [example](https://github.com/kubernetes/kubernetes/tree/672d5a777d5df35cc1e74c8075e3c17a20c4c20b/examples/https-nginx).
+The [nginx](http://nginx.org/en/) server front by a secure Kubernetes TLS service. The code to generate the self-signed RSA key and certificate is based on this k8s [example](https://github.com/kubernetes/kubernetes/tree/672d5a777d5df35cc1e74c8075e3c17a20c4c20b/examples/https-nginx).
 
 Use the k8s `secret` API to generate the self-signed RSA key and certificate that the server can use for TLS:
 ```sh

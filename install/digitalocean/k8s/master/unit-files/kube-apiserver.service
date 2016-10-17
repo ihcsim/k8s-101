@@ -6,24 +6,35 @@ Wants=docker.service
 
 [Service]
 EnvironmentFile=/etc/environment
-EnvironmentFile=/etc/etcd.env
-EnvironmentFile=/etc/k8s.env
-ExecStart=/opt/bin/kube-apiserver \
+ExecStart=/opt/k8s/bin/kube-apiserver \
   --admission-control=NamespaceLifecycle,LimitRanger,SecurityContextDeny,ServiceAccount,ResourceQuota \
-  --advertise-address=${COREOS_PRIVATE_IPV4} \
+  --advertise-address=$${COREOS_PRIVATE_IPV4} \
   --allow-privileged=true \
-  --enable-swagger-ui=true \
+  --authorization-mode=ABAC \
+  --authorization-policy-file=${authorization_policy_file} \
   --bind-address=0.0.0.0 \
-  --insecure-bind-address=0.0.0.0 \
-  --insecure-port=${K8S_APISERVER_INSECURE_PORT} \
-  --etcd-servers=${ETCD_01_ENDPOINT},${ETCD_02_ENDPOINT},${ETCD_03_ENDPOINT} \
-  --service-cluster-ip-range=10.100.0.0/16 \
+  --client-ca-file=${client_ca_file} \
+  --enable-swagger-ui=true \
+  --etcd-servers=${etcd_endpoints} \
+  --etcd-cafile=${ca_file} \
+  --etcd-certfile=${cert_file} \
+  --etcd-keyfile=${key_file} \
+  --insecure-bind-address=$${COREOS_PRIVATE_IPV4} \
+  --insecure-port=${insecure_port} \
+  --kubelet-certificate-authority=${ca_file} \
+  --kubelet-client-certificate=${cert_file} \
+  --kubelet-client-key=${key_file} \
+  --secure_port=${secure_port} \
+  --service-cluster-ip-range=${service_cluster_ip_range} \
   --service-node-port-range=30000-32767 \
-  --service-account-key-file=/var/lib/kubernetes/k8s.pem \
+  --tls-cert-file=${cert_file} \
+  --tls-private-key-file=${key_file} \
+  --token-auth-file=${token_auth_file} \
   --v=2
-ExecStartPost=-/bin/bash -c "until /usr/bin/curl http://${COREOS_PRIVATE_IPV4}:${K8S_APISERVER_INSECURE_PORT}; do echo \"waiting for API server to come online...\"; sleep 3; done"
+ExecStartPost=-/bin/bash -c "until /usr/bin/curl --cacert ${ca_file} --key ${client_key_file} --cert ${client_cert_file} https://$${COREOS_PRIVATE_IPV4}:${secure_port}; do echo \"waiting for API server to come online...\"; sleep 5 done"
 Restart=on-failure
 RestartSec=5
+TimeoutSec=20
 
 [Install]
 WantedBy=multi-user.target
